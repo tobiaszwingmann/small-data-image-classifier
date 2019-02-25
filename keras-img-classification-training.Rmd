@@ -25,14 +25,6 @@ from keras.layers import Activation, Dropout, Flatten, Dense
 from keras import backend as K
 ```
 
-
-```{python}
-import PIL
-img = load_img('../data/small-image-classifier/data/train/cats/cat.0.jpg')
-keras.preprocessing.image.img_to_array(img)
-
-```
-
 ## Data Preparation
 
 Data comes in the following structure: 
@@ -57,13 +49,7 @@ data/
             cat.002.jpg
             ...
 
-and must be loaded to the local VM from GCS if not exists with this command 
-
-```{python}
-if  not os.path.exists('../data/small-image-classifier'):
-    os.system('mkdir ../data/')
-    os.system('gsutil cp -r gs://small-image-classifier/ ../data/')
-```
+and must be loaded to the local VM from GCS if not exists with this command from shell: gsutil cp -r gs://small-image-classifier/ ../data/
 
 ```{python}
 print(os.listdir('../data/'))
@@ -245,8 +231,82 @@ model.compile(loss='binary_crossentropy',
 model.load_weights('first_try.h5')
 
 model.save('model_1.h5')
+              
+```
 
-              
-              
+
+## Building on top of a pre-trained model
+
+To improve model accuracy, instead of training a model from scratch, we take a pre-trained model and customize it:
+
+### Set Variables
+```{python}
+top_model_weights_path = 'model_2_weights.h5'
+model_2 = 'model_2.h5'
+```
+
+Function to save bottleneck features from pre-trained VGG16 network:
+```{python}
+def save_bottlebeck_features():
+    datagen = ImageDataGenerator(rescale=1. / 255)
+
+    # build the VGG16 network
+    model = applications.VGG16(include_top=False, weights='imagenet')
+
+    generator = datagen.flow_from_directory(
+        train_data_dir,
+        target_size=(img_width, img_height),
+        batch_size=batch_size,
+        class_mode=None,
+        shuffle=False)
+    bottleneck_features_train = model.predict_generator(
+        generator, nb_train_samples // batch_size)
+    np.save(open('bottleneck_features_train.npy', 'w'),
+            bottleneck_features_train)
+
+    generator = datagen.flow_from_directory(
+        validation_data_dir,
+        target_size=(img_width, img_height),
+        batch_size=batch_size,
+        class_mode=None,
+        shuffle=False)
+    bottleneck_features_validation = model.predict_generator(
+        generator, nb_validation_samples // batch_size)
+    np.save(open('bottleneck_features_validation.npy', 'w'),
+            bottleneck_features_validation)
+```
+
+Function to train the top part of the model:
+```{python}
+def train_top_model():
+    train_data = np.load(open('bottleneck_features_train.npy'))
+    train_labels = np.array(
+        [0] * (nb_train_samples / 2) + [1] * (nb_train_samples / 2))
+
+    validation_data = np.load(open('bottleneck_features_validation.npy'))
+    validation_labels = np.array(
+        [0] * (nb_validation_samples / 2) + [1] * (nb_validation_samples / 2))
+
+    model = Sequential()
+    model.add(Flatten(input_shape=train_data.shape[1:]))
+    model.add(Dense(256, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(1, activation='sigmoid'))
+
+    model.compile(optimizer='rmsprop',
+                  loss='binary_crossentropy', metrics=['accuracy'])
+
+    model.fit(train_data, train_labels,
+              epochs=epochs,
+              batch_size=batch_size,
+              validation_data=(validation_data, validation_labels))
+    model.save_weights(top_model_weights_path)
+    model.save(model_2)
+```
+
+Train the model
+```{python}
+save_bottlebeck_features()
+train_top_model()
 ```
 
