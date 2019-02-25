@@ -8,8 +8,6 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library("reticulate")
-use_condaenv("py37")
-
 ```
 
 ```{python}
@@ -18,15 +16,6 @@ import shutil # for data prep
 import re #for data prep
 
 import keras
-import sys
-from PIL import Image
-#sys.modules['Image'] = Image
-
-from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D
-from keras.layers import Activation, Dropout, Flatten, Dense
-from keras import backend as K
 
 ```
 
