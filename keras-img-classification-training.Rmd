@@ -15,14 +15,16 @@ library("reticulate")
 import sys
 print(sys.version_info)
 import os
+import numpy as np
 ```
 
-```{python}
+```{python3}
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense
 from keras import backend as K
+from keras import applications
 ```
 
 ## Data Preparation
@@ -247,7 +249,7 @@ model_2 = 'model_2.h5'
 
 Function to save bottleneck features from pre-trained VGG16 network:
 ```{python}
-def save_bottlebeck_features():
+def save_bottleneck_features():
     datagen = ImageDataGenerator(rescale=1. / 255)
 
     # build the VGG16 network
@@ -259,8 +261,10 @@ def save_bottlebeck_features():
         batch_size=batch_size,
         class_mode=None,
         shuffle=False)
+        
     bottleneck_features_train = model.predict_generator(
         generator, nb_train_samples // batch_size)
+    
     np.save(open('bottleneck_features_train.npy', 'w'),
             bottleneck_features_train)
 
@@ -270,8 +274,10 @@ def save_bottlebeck_features():
         batch_size=batch_size,
         class_mode=None,
         shuffle=False)
+        
     bottleneck_features_validation = model.predict_generator(
         generator, nb_validation_samples // batch_size)
+    
     np.save(open('bottleneck_features_validation.npy', 'w'),
             bottleneck_features_validation)
 ```
@@ -300,13 +306,14 @@ def train_top_model():
               epochs=epochs,
               batch_size=batch_size,
               validation_data=(validation_data, validation_labels))
+    
     model.save_weights(top_model_weights_path)
     model.save(model_2)
 ```
 
 Train the model
 ```{python}
-save_bottlebeck_features()
+save_bottleneck_features()
 train_top_model()
 ```
 
